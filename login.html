@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - 智能登录助手</title>
+    <title>登录 - Google 海外账号助手</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f1f5f9;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -17,8 +17,8 @@
         }
         .login-card {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
             padding: 40px;
             width: 100%;
             max-width: 420px;
@@ -41,8 +41,8 @@
         .logo-icon {
             width: 64px;
             height: 64px;
-            background: linear-gradient(135deg, #3ecf8e 0%, #2d7a96 100%);
-            border-radius: 16px;
+            background: #1a3a5f;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -79,14 +79,13 @@
             width: 100%;
             padding: 14px 45px 14px 16px;
             border: 2px solid #e5e7eb;
-            border-radius: 12px;
+            border-radius: 6px;
             font-size: 15px;
             transition: all 0.2s;
         }
         .input-group input:focus {
             outline: none;
-            border-color: #3ecf8e;
-            box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.1);
+            border-color: #1a3a5f;
         }
         .toggle-password {
             position: absolute;
@@ -106,21 +105,17 @@
         .login-btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #3ecf8e 0%, #2d7a96 100%);
+            background: #1a3a5f;
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 6px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: background 0.2s;
         }
         .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(62, 207, 142, 0.3);
-        }
-        .login-btn:active {
-            transform: translateY(0);
+            background: #254a7a;
         }
         .login-btn:disabled {
             opacity: 0.6;
@@ -131,7 +126,8 @@
             background: #fee2e2;
             color: #991b1b;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 6px;
+            border: 1px solid #fecaca;
             font-size: 14px;
             margin-bottom: 20px;
             display: none;
@@ -149,7 +145,8 @@
             background: #d1fae5;
             color: #065f46;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 6px;
+            border: 1px solid #a7f3d0;
             font-size: 14px;
             margin-bottom: 20px;
             display: none;
@@ -184,8 +181,8 @@
             align-items: center;
             gap: 12px;
             padding: 16px 20px;
-            background: linear-gradient(135deg, #3ecf8e 0%, #2d7a96 100%);
-            border-radius: 12px;
+            background: #1a3a5f;
+            border-radius: 6px;
             color: white;
         }
         .badge-icon {
@@ -208,7 +205,7 @@
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
             </div>
-            <h1>智能登录助手</h1>
+            <h1>Google 海外账号助手</h1>
             <p>使用邮箱和密码登录</p>
         </div>
 
