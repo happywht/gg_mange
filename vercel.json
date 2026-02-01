@@ -8,16 +8,6 @@
       "config": { "distDir": "" }
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/$1",
-      "headers": {
-        "cache-control": "public, max-age=3600",
-        "X-Content-Type-Options": "nosniff"
-      }
-    }
-  ],
   "rewrites": [
     {
       "source": "/(.*)",
