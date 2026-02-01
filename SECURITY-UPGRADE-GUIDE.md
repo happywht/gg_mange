@@ -126,7 +126,7 @@ WHERE secret_encrypted IS NOT NULL;
 <script src="auth-check.js"></script>
 ```
 
-#### 5.2 更新 `admin.html`
+#### 5.2 更新 `manage_sucdri_2026_top_secret.html`
 
 同样添加认证管理器和管理员权限检查：
 
@@ -191,9 +191,9 @@ const CONFIG = {
    - 验证是否成功跳转到主页面
 
 2. **测试权限**
-   - 访问 `admin.html`，验证管理员可以访问
+   - 访问 `manage_sucdri_2026_top_secret.html`，验证管理员可以访问
    - 退出登录，使用非管理员邮箱登录（需要先创建）
-   - 验证非管理员无法访问 `admin.html`
+   - 验证非管理员无法访问 `manage_sucdri_2026_top_secret.html`
 
 3. **测试数据隔离**
    - 创建多个用户，每个用户添加自己的账号

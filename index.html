@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>谷歌智能登录助手</title>
+  <title>Google 海外账号助手</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -69,7 +69,7 @@
     const DEFAULT_CONFIG = {
       contact: { name: '王海涛', email: 'wanghaitao@sucdri.com', openId: 'ou_f28f2c1dfe74461b2ca055dfe2afe20b' },
       buttons: {
-        guide: { visible: true, text: '登录指导', url: '' },
+        guide: { visible: true, text: '操作说明', url: '' },
         gemini: { visible: true, text: '访问 Gemini', url: 'https://gemini.google.com/app' }
       }
     };
@@ -251,6 +251,11 @@
       const [showGuide, setShowGuide] = useState(false);
       const [config, setConfig] = useState(() => getConfigFromLocal());
       const [storageMode, setStorageMode] = useState(() => getStorageMode());
+      const [permissions, setPermissions] = useState({
+        showAddAccount: true,
+        showDeleteButton: true,
+        showModeSwitch: true
+      });
 
       // 切换存储模式
       const toggleStorageMode = async (mode) => {
@@ -283,6 +288,10 @@
                 contact: { ...DEFAULT_CONFIG.contact, ...conf.contact },
                 buttons: { ...DEFAULT_CONFIG.buttons, ...conf.buttons }
               }));
+              // 加载权限配置
+              if (conf.permissions) {
+                setPermissions(conf.permissions);
+              }
             }
             setErrorMsg(null);
           } else {
@@ -421,12 +430,12 @@
             {/* 操作指导 */}
             {showGuide && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative">
+                <div className="bg-white rounded-md max-w-lg w-full p-8 border border-slate-200 relative">
                   <button onClick={() => setShowGuide(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full">
                     <Icon name="x" size={20} />
                   </button>
                   <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-600">
-                    <Icon name="help" /> 账号登录指导
+                    <Icon name="help" /> 账号操作说明
                   </h3>
                   <div className="space-y-4 text-slate-600 leading-relaxed">
                     <div className="flex gap-4">
@@ -451,7 +460,7 @@
 
             {/* 系统公告（来自本地配置） */}
             {announcement && (
-              <div className="mb-6 bg-blue-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between">
+              <div className="mb-6 bg-[#1a3a5f] text-white p-4 rounded-md flex items-center justify-between border border-slate-200">
                 <div className="flex items-center gap-3">
                   <Icon name="bell" size={20} />
                   <div><span className="font-bold">公告: </span><span>{announcement.message}</span></div>
@@ -475,29 +484,29 @@
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold text-blue-600 flex items-center gap-2">
-                    <Icon name="shield" size={32} /> 智能登录助手 <span className="text-xs bg-blue-100 px-2 py-1 rounded-full uppercase tracking-tighter">城建版</span>
+                    <Icon name="shield" size={32} /> Google 海外账号助手 <span className="text-xs bg-blue-100 px-2 py-1 rounded-full uppercase tracking-tighter">城建版</span>
                   </h1>
                   <div className="flex items-center gap-4 text-slate-500 mt-2">
                      {/* 模式切换按钮 */}
-                     {supabase && (
-                       <div className="flex items-center gap-2 bg-slate-100 rounded-full p-1">
+                     {supabase && permissions.showModeSwitch && (
+                       <div className="flex items-center gap-2 bg-slate-100 rounded-md p-1">
                          <button
                            onClick={() => toggleStorageMode('local')}
-                           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${storageMode === 'local' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                           className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${storageMode === 'local' ? 'bg-white text-amber-700' : 'text-slate-600 hover:text-slate-800'}`}
                          >
                            <Icon name="database" size={14} /> 本地
                          </button>
                          <button
                            onClick={() => toggleStorageMode('cloud')}
-                           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${storageMode === 'cloud' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                           className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${storageMode === 'cloud' ? 'bg-white text-blue-700' : 'text-slate-600 hover:text-slate-800'}`}
                          >
                            <Icon name="cloud" size={14} /> 云端
                          </button>
                        </div>
                      )}
                      {!supabase && (
-                       <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-sm">
-                         <Icon name="database" size={14} className="text-amber-500" /> <span className="text-xs font-medium">本地存储</span>
+                       <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-md border border-slate-200">
+                         <Icon name="database" size={14} className="text-amber-600" /> <span className="text-xs font-medium">本地存储</span>
                        </div>
                      )}
                   </div>
@@ -518,14 +527,14 @@
                         href={config.buttons.guide.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:border-blue-300 hover:text-blue-600 transition-all text-sm font-semibold shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-md hover:border-slate-300 hover:text-slate-800 transition-all text-sm font-semibold"
                       >
-                        <Icon name="help" size={18} /> {config.buttons.guide.text || '登录指导'} <Icon name="link" size={14} />
+                        <Icon name="help" size={18} /> {config.buttons.guide.text || '操作说明'} <Icon name="link" size={14} />
                       </a>
                     ) : (
                       // 无 URL 配置 → 弹出框（原有行为）
-                      <button onClick={() => setShowGuide(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:border-blue-300 hover:text-blue-600 transition-all text-sm font-semibold shadow-sm">
-                        <Icon name="help" size={18} /> {config.buttons?.guide?.text || '登录指导'}
+                      <button onClick={() => setShowGuide(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-md hover:border-slate-300 hover:text-slate-800 transition-all text-sm font-semibold">
+                        <Icon name="help" size={18} /> {config.buttons?.guide?.text || '操作说明'}
                       </button>
                     )
                   )}
@@ -535,7 +544,7 @@
                       href={config.buttons?.gemini?.url || 'https://gemini.google.com/app'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-all text-sm font-semibold shadow-md"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#1a3a5f] text-white rounded-md hover:bg-[#254a7a] transition-colors text-sm font-semibold border border-slate-200"
                     >
                       <Icon name="sparkles" size={18} /> {config.buttons?.gemini?.text || '访问 Gemini'} <Icon name="link" size={14} />
                     </a>
@@ -546,23 +555,25 @@
             </header>
 
             {/* 添加新账号 */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Icon name="plus" size={20} /> 添加新账号</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="备注名称" value={newAcc.name} onChange={e => setNewAcc({...newAcc, name: e.target.value})} />
-                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Google 账号" value={newAcc.email} onChange={e => setNewAcc({...newAcc, email: e.target.value})} />
-                <input type="password" className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="密码" value={newAcc.password} onChange={e => setNewAcc({...newAcc, password: e.target.value})} />
-                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="2FA 密钥" value={newAcc.secret} onChange={e => setNewAcc({...newAcc, secret: e.target.value})} />
+            {permissions.showAddAccount && (
+              <div className="bg-white rounded-md border border-slate-200 p-6 mb-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Icon name="plus" size={20} /> 添加新账号</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <input className="px-4 py-2 rounded-md border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm" placeholder="备注名称" value={newAcc.name} onChange={e => setNewAcc({...newAcc, name: e.target.value})} />
+                  <input className="px-4 py-2 rounded-md border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm" placeholder="Google 账号" value={newAcc.email} onChange={e => setNewAcc({...newAcc, email: e.target.value})} />
+                  <input type="password" className="px-4 py-2 rounded-md border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm" placeholder="密码" value={newAcc.password} onChange={e => setNewAcc({...newAcc, password: e.target.value})} />
+                  <input className="px-4 py-2 rounded-md border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm" placeholder="2FA 密钥" value={newAcc.secret} onChange={e => setNewAcc({...newAcc, secret: e.target.value})} />
+                </div>
+                <button onClick={addAccount} className="mt-4 w-full md:w-auto px-8 py-2 bg-[#1a3a5f] hover:bg-[#254a7a] text-white font-medium rounded-md transition-colors">
+                  保存
+                </button>
               </div>
-              <button onClick={addAccount} className="mt-4 w-full md:w-auto px-8 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-all active:scale-95 shadow-md shadow-amber-100">
-                保存到本地
-              </button>
-            </div>
+            )}
 
             {/* 账号列表 */}
             <div className="grid grid-cols-1 gap-6 mb-12">
               {accounts.map(acc => (
-                <div key={acc.id} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-all group">
+                <div key={acc.id} className="bg-white rounded-md border border-slate-200 overflow-hidden transition-all group">
                   <div className="p-1 w-full bg-amber-500"></div>
                   <div className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -593,11 +604,13 @@
                             {showPassword[acc.id] ? <Icon name="eyeOff" size={16}/> : <Icon name="eye" size={16}/>}
                           </button>
                         </div>
-                        <button onClick={() => removeAccount(acc.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Icon name="trash" size={20} /></button>
+                        {permissions.showDeleteButton && (
+                          <button onClick={() => removeAccount(acc.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Icon name="trash" size={20} /></button>
+                        )}
                       </div>
                     </div>
                     {acc.hasSecret && (
-                      <div className="mt-6 p-4 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100 group-hover:border-amber-200 transition-colors">
+                      <div className="mt-6 p-4 bg-slate-50 rounded-md flex items-center justify-between border border-slate-100 group-hover:border-amber-200 transition-colors">
                         <div className="flex items-center gap-3">
                           <Icon name="shield" className="text-amber-600" />
                           <div>
@@ -608,7 +621,7 @@
                         <button onClick={() => {
                           const token = tokens[acc.id];
                           if (token) copyToClipboard(token, `token-${acc.id}`);
-                        }} className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg flex items-center gap-2 font-bold shadow-lg active:scale-95 transition-all shadow-amber-200">
+                        }} className="px-6 py-3 bg-[#1a3a5f] hover:bg-[#254a7a] text-white rounded-md flex items-center gap-2 font-medium transition-colors border border-slate-200">
                           {copiedField === `token-${acc.id}` ? <Icon name="check" size={20}/> : <Icon name="copy" size={20}/>} 复制
                         </button>
                       </div>
@@ -617,7 +630,7 @@
                 </div>
               ))}
               {accounts.length === 0 && (
-                <div className="text-center py-20 bg-slate-100 rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 font-medium italic">
+                <div className="text-center py-20 bg-slate-100 rounded-md border-2 border-dashed border-slate-300 text-slate-400 font-medium italic">
                   暂无账号，请在上方添加
                 </div>
               )}
@@ -634,7 +647,7 @@
               >
                 <div className="relative">
                   {/* 按钮主体 */}
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer">
+                  <div className="w-14 h-14 bg-[#1a3a5f] rounded-full flex items-center justify-center hover:bg-[#254a7a] hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer">
                     <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                     </svg>

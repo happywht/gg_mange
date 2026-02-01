@@ -31,8 +31,8 @@ npm start
 
 ### 静态部署
 
-必须部署的文件：`index.html`、`admin.html`、`supabase-config.js`（若用 Supabase）。  
-用户首页：`index.html`；管理后台：`admin.html`（管理员密码默认 `admin123`，仅前端校验）。
+必须部署的文件：`index.html`、`manage_sucdri_2026_top_secret.html`、`supabase-config.js`（若用 Supabase）。
+用户首页：`index.html`；管理后台：`manage_sucdri_2026_top_secret.html`（管理员密码默认 `admin123`，仅前端校验）。
 
 ---
 
@@ -69,11 +69,11 @@ window.SUPABASE_ANON_KEY = '你的 anon public key';
 
 ```
 谷歌账号管理/
-├── index.html         # 用户端
-├── admin.html          # 管理端
-├── supabase-config.js  # Supabase 配置（必填后才用云端）
+├── index.html                              # 用户端
+├── manage_sucdri_2026_top_secret.html      # 管理端（已重命名增强安全性）
+├── supabase-config.js                      # Supabase 配置（必填后才用云端）
 ├── supabase/
-│   └── schema.sql      # Supabase 建表脚本
+│   └── schema.sql                          # Supabase 建表脚本
 ├── package.json
 └── README.md
 ```
