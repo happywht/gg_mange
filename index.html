@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>谷歌智能登录助手</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- OTPAuth -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
+
+  <!-- Supabase 和认证系统（按顺序加载） -->
+  <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth-manager.js"></script>
+  <script src="auth-check.js"></script>
+
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .mode-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-switch:hover {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Supabase 客户端（配置了 URL 和 Key 才创建）
+    const supabase = (typeof window !== 'undefined' && window.SUPABASE_URL && window.SUPABASE_ANON_KEY && typeof window.supabase !== 'undefined')
+      ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+      : null;
+
+    // 存储模式：local 或 cloud
+    const getStorageMode = () => {
+      const saved = localStorage.getItem('google_assistant_storage_mode');
+      if (saved) return saved;
+      // 默认优先使用云端模式（如果配置了），否则使用本地模式
+      return supabase ? 'cloud' : 'local';
+    };
+
+    const STORAGE_KEYS = {
+      accounts: 'google_assistant_accounts',
+      announcement: 'google_assistant_announcement',
+      config: 'google_assistant_config'
+    };
+    const DEFAULT_CONFIG = {
+      contact: { name: '王海涛', email: 'wanghaitao@sucdri.com', openId: 'ou_f28f2c1dfe74461b2ca055dfe2afe20b' },
+      buttons: {
+        guide: { visible: true, text: '登录指导', url: '' },
+        gemini: { visible: true, text: '访问 Gemini', url: 'https://gemini.google.com/app' }
+      }
+    };
+    function withFeishuUrl(c) {
+      const openId = (c && c.contact && c.contact.openId) ? c.contact.openId : '';
+      return {
+        ...c,
+        contact: { ...(c.contact || {}), feishuUrl: openId ? `https://applink.feishu.cn/client/chat/open?openId=${openId}` : '' }
+      };
+    }
+    function getConfigFromLocal() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.config);
+        if (!raw) return withFeishuUrl(DEFAULT_CONFIG);
+        const saved = JSON.parse(raw);
+        return withFeishuUrl({ contact: { ...DEFAULT_CONFIG.contact, ...saved.contact }, buttons: { ...DEFAULT_CONFIG.buttons, ...saved.buttons } });
+      } catch {
+        return withFeishuUrl(DEFAULT_CONFIG);
+      }
+    }
+
+    // --- 自定义内联图标组件 ---
+    const Icon = ({ name, size = 20, className = "" }) => {
+      const icons = {
+        key: (
+          <>
+            <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4.1a1 1 0 0 0-1.4 0l-2.1 2.1a1 1 0 0 0 0 1.4Z" />
+            <path d="m10.5 12.5 1.5 1.5" />
+            <path d="M11 11l4.5-4.5" />
+            <path d="M4.5 16.5 7 14" />
+            <path d="M3 21l3-3" />
+            <path d="m21 3-5 5" />
+            <path d="M14 9a7 7 0 1 1-10 10 7 7 0 0 1 10-10Z" />
+          </>
+        ),
+        user: (
+          <>
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </>
+        ),
+        shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />,
+        copy: (
+          <>
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+          </>
+        ),
+        check: <path d="M20 6 9 17l-5-5" />,
+        eye: (
+          <>
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </>
+        ),
+        eyeOff: (
+          <>
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+            <path d="m2 2 20 20" />
+          </>
+        ),
+        plus: (
+          <>
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </>
+        ),
+        trash: (
+          <>
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+          </>
+        ),
+        clock: (
+          <>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </>
+        ),
+        cloud: <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.57-1.78-4.735-4.184-5.312a7.002 7.002 0 0 0-13.316 1.056C2.122 10.044 0 12.51 0 15.5 0 18.537 2.463 21 5.5 21h12" />,
+        database: (
+          <>
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          </>
+        ),
+        server: (
+          <>
+            <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
+            <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
+            <line x1="6" x2="6.01" y1="6" y2="6" />
+            <line x1="6" x2="6.01" y1="18" y2="18" />
+          </>
+        ),
+        bell: (
+          <>
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </>
+        ),
+        x: (
+          <>
+            <path d="M18 6 6 18" />
+            <path d="M6 6l12 12" />
+          </>
+        ),
+        alert: (
+          <>
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </>
+        ),
+        link: (
+          <>
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <path d="M15 3h6v6" />
+            <path d="M10 14 21 3" />
+          </>
+        ),
+        help: (
+          <>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </>
+        ),
+        sparkles: <path d="m12 3 1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3Z" />,
+        message: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z" />,
+        feishu: (
+          <>
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </>
+        ),
+        refresh: (
+          <>
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 21h5v-5" />
+          </>
+        )
+      };
+
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={className}
+        >
+          {icons[name] || null}
+        </svg>
+      );
+    };
+
+    const App = () => {
+      const [accounts, setAccounts] = useState([]);
+      const [announcement, setAnnouncement] = useState(null);
+      const [newAcc, setNewAcc] = useState({ name: '', email: '', password: '', secret: '' });
+      const [showPassword, setShowPassword] = useState({});
+      const [copiedField, setCopiedField] = useState(null);
+      const [tokens, setTokens] = useState({});
+      const [timeLeft, setTimeLeft] = useState(30);
+      const [loading, setLoading] = useState(true);
+      const [errorMsg, setErrorMsg] = useState(null);
+      const [showGuide, setShowGuide] = useState(false);
+      const [config, setConfig] = useState(() => getConfigFromLocal());
+      const [storageMode, setStorageMode] = useState(() => getStorageMode());
+
+      // 切换存储模式
+      const toggleStorageMode = async (mode) => {
+        setLoading(true);
+        setStorageMode(mode);
+        localStorage.setItem('google_assistant_storage_mode', mode);
+        // 传递 showLoading=true，确保加载完成后设置 loading=false
+        await loadData(mode, true);
+      };
+
+      // 加载数据：Supabase 云端 或 本地 localStorage
+      // showLoading: 是否显示加载状态（自动刷新时不显示）
+      const loadData = async (mode = storageMode, showLoading = false) => {
+        const useCloud = mode === 'cloud' && supabase;
+        if (showLoading) setLoading(true);
+        try {
+          if (useCloud) {
+            const [accRes, annRes, confRes] = await Promise.all([
+              supabase.from('accounts').select('*').order('created_at', { ascending: false }),
+              supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(1),
+              supabase.from('config').select('*').eq('id', 'default').single()
+            ]);
+            const list = (accRes.data || []).map(a => ({ ...a, hasSecret: !!a.secret }));
+            setAccounts(list);
+            const annRow = annRes.data && annRes.data[0];
+            setAnnouncement(annRow && annRow.message ? annRow : null);
+            const conf = confRes.data;
+            if (conf && (conf.contact || conf.buttons)) {
+              setConfig(withFeishuUrl({
+                contact: { ...DEFAULT_CONFIG.contact, ...conf.contact },
+                buttons: { ...DEFAULT_CONFIG.buttons, ...conf.buttons }
+              }));
+            }
+            setErrorMsg(null);
+          } else {
+            const raw = localStorage.getItem(STORAGE_KEYS.accounts) || '[]';
+            const list = JSON.parse(raw).map(a => ({ ...a, hasSecret: !!a.secret }));
+            setAccounts(list);
+            const ann = localStorage.getItem(STORAGE_KEYS.announcement);
+            if (ann) {
+              try {
+                const obj = JSON.parse(ann);
+                if (obj && obj.message) setAnnouncement(obj);
+              } catch (_) {}
+            } else setAnnouncement(null);
+            setConfig(getConfigFromLocal());
+            setErrorMsg(null);
+          }
+        } catch (e) {
+          console.error('数据加载失败', e);
+          setErrorMsg(mode === 'cloud' ? '云端数据加载失败' : '本地数据加载失败');
+        } finally {
+          if (showLoading) setLoading(false);
+        }
+      };
+
+      // 1. 首次加载
+      useEffect(() => {
+        const initLoad = async () => {
+          setLoading(true);
+          await loadData(storageMode, false); // 首次加载不显示 loading，避免闪烁
+          setLoading(false);
+        };
+        initLoad();
+      }, []);
+
+      // 2a. 本地模式：多标签同步（localStorage 变化时刷新）
+      useEffect(() => {
+        if (storageMode === 'cloud') return;
+        const onStorage = (e) => {
+          if (e.key === STORAGE_KEYS.accounts || e.key === STORAGE_KEYS.announcement || e.key === STORAGE_KEYS.config) loadData();
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+      }, []);
+
+      // 2b. 云端模式：Supabase 实时订阅（管理页或他人更新时自动刷新）
+      useEffect(() => {
+        if (storageMode !== 'cloud' || !supabase) return;
+        const channel = supabase.channel('public-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, () => loadData())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => loadData())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, () => loadData())
+          .subscribe();
+        return () => { supabase.removeChannel(channel); };
+      }, []);
+
+      // 2. 定时更新 TOTP 与倒计时
+      useEffect(() => {
+        const timer = setInterval(() => {
+          const seconds = Math.floor(Date.now() / 1000);
+          setTimeLeft(30 - (seconds % 30));
+          if (window.OTPAuth && accounts.length > 0) {
+            const newTokens = {};
+            accounts.forEach(acc => {
+              if (acc.secret) {
+                try {
+                  const totp = new window.OTPAuth.TOTP({ secret: (acc.secret || '').replace(/\s/g, '').toUpperCase() });
+                  newTokens[acc.id] = totp.generate();
+                } catch (e) { newTokens[acc.id] = 'Error'; }
+              }
+            });
+            setTokens(newTokens);
+          }
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [accounts]);
+
+      const addAccount = async () => {
+        if (!newAcc.email || !newAcc.password) return;
+        const docId = Date.now().toString();
+        const now = new Date().toISOString();
+        const row = { id: docId, name: newAcc.name || '', email: newAcc.email, password: newAcc.password, secret: newAcc.secret || '', created_at: now, updated_at: now };
+        const useCloud = storageMode === 'cloud' && supabase;
+        if (useCloud) {
+          const { error } = await supabase.from('accounts').insert(row);
+          if (error) { setErrorMsg(error.message || '添加失败'); return; }
+          setErrorMsg(null);
+          loadData();
+        } else {
+          const updated = [...accounts, { ...row, hasSecret: !!row.secret }];
+          setAccounts(updated);
+          localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(updated.map(({ hasSecret, ...a }) => a)));
+        }
+        setNewAcc({ name: '', email: '', password: '', secret: '' });
+      };
+
+      const removeAccount = async (id) => {
+        const useCloud = storageMode === 'cloud' && supabase;
+        if (useCloud) {
+          const { error } = await supabase.from('accounts').delete().eq('id', id);
+          if (error) { setErrorMsg(error.message || '删除失败'); return; }
+          loadData();
+        } else {
+          const updated = accounts.filter(a => a.id !== id);
+          setAccounts(updated);
+          localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(updated.map(({ hasSecret, ...a }) => a)));
+        }
+      };
+
+      const copyToClipboard = (text, fieldId) => {
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        setCopiedField(fieldId);
+        setTimeout(() => setCopiedField(null), 2000);
+      };
+
+      // 纯前端模式：密码与 TOTP 均来自本地账号数据
+      const getPassword = (id) => (accounts.find(a => a.id === id) || {}).password;
+
+      if (loading) return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-slate-500 font-medium">应用加载中...</p>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900 pb-20 relative">
+          <div className="max-w-4xl mx-auto">
+
+            {/* 操作指导 */}
+            {showGuide && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative">
+                  <button onClick={() => setShowGuide(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full">
+                    <Icon name="x" size={20} />
+                  </button>
+                  <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-600">
+                    <Icon name="help" /> 账号登录指导
+                  </h3>
+                  <div className="space-y-4 text-slate-600 leading-relaxed">
+                    <div className="flex gap-4">
+                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold text-sm">1</span>
+                      <p>在 Google 登录页输入账号后，点击"复制账号"并粘贴。</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold text-sm">2</span>
+                      <p>在密码框点击"复制密码"进行粘贴。</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold text-sm">3</span>
+                      <p>若弹出两步验证，点击"复制验证码"，确保在 30 秒倒计时结束前粘贴。</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowGuide(false)} className="mt-8 w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                    我明白了
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 系统公告（来自本地配置） */}
+            {announcement && (
+              <div className="mb-6 bg-blue-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Icon name="bell" size={20} />
+                  <div><span className="font-bold">公告: </span><span>{announcement.message}</span></div>
+                </div>
+                <button onClick={() => setAnnouncement(null)} className="hover:bg-blue-500 p-1 rounded"><Icon name="x" size={18} /></button>
+              </div>
+            )}
+
+            {/* 异常提醒 */}
+            {errorMsg && (
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Icon name="alert" size={20} />
+                  <span>{errorMsg}</span>
+                </div>
+                <button onClick={() => setErrorMsg(null)} className="p-1 hover:bg-red-100 rounded"><Icon name="x" size={18} /></button>
+              </div>
+            )}
+
+            <header className="mb-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-blue-600 flex items-center gap-2">
+                    <Icon name="shield" size={32} /> 智能登录助手 <span className="text-xs bg-blue-100 px-2 py-1 rounded-full uppercase tracking-tighter">城建版</span>
+                  </h1>
+                  <div className="flex items-center gap-4 text-slate-500 mt-2">
+                     {/* 模式切换按钮 */}
+                     {supabase && (
+                       <div className="flex items-center gap-2 bg-slate-100 rounded-full p-1">
+                         <button
+                           onClick={() => toggleStorageMode('local')}
+                           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${storageMode === 'local' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                         >
+                           <Icon name="database" size={14} /> 本地
+                         </button>
+                         <button
+                           onClick={() => toggleStorageMode('cloud')}
+                           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${storageMode === 'cloud' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                         >
+                           <Icon name="cloud" size={14} /> 云端
+                         </button>
+                       </div>
+                     )}
+                     {!supabase && (
+                       <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-sm">
+                         <Icon name="database" size={14} className="text-amber-500" /> <span className="text-xs font-medium">本地存储</span>
+                       </div>
+                     )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
+                  <Icon name="clock" size={16} className="text-blue-500" />
+                  <span className="text-sm font-semibold text-blue-700">更新: {timeLeft}s</span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex gap-2">
+                  {/* 登录指导按钮 */}
+                  {config.buttons?.guide?.visible !== false && (
+                    config.buttons?.guide?.url ? (
+                      // 有 URL 配置 → 跳转链接
+                      <a
+                        href={config.buttons.guide.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:border-blue-300 hover:text-blue-600 transition-all text-sm font-semibold shadow-sm"
+                      >
+                        <Icon name="help" size={18} /> {config.buttons.guide.text || '登录指导'} <Icon name="link" size={14} />
+                      </a>
+                    ) : (
+                      // 无 URL 配置 → 弹出框（原有行为）
+                      <button onClick={() => setShowGuide(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:border-blue-300 hover:text-blue-600 transition-all text-sm font-semibold shadow-sm">
+                        <Icon name="help" size={18} /> {config.buttons?.guide?.text || '登录指导'}
+                      </button>
+                    )
+                  )}
+                  {/* 访问 Gemini 按钮 */}
+                  {config.buttons?.gemini?.visible !== false && (
+                    <a
+                      href={config.buttons?.gemini?.url || 'https://gemini.google.com/app'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-all text-sm font-semibold shadow-md"
+                    >
+                      <Icon name="sparkles" size={18} /> {config.buttons?.gemini?.text || '访问 Gemini'} <Icon name="link" size={14} />
+                    </a>
+                  )}
+                </div>
+
+              </div>
+            </header>
+
+            {/* 添加新账号 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Icon name="plus" size={20} /> 添加新账号</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="备注名称" value={newAcc.name} onChange={e => setNewAcc({...newAcc, name: e.target.value})} />
+                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Google 账号" value={newAcc.email} onChange={e => setNewAcc({...newAcc, email: e.target.value})} />
+                <input type="password" className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="密码" value={newAcc.password} onChange={e => setNewAcc({...newAcc, password: e.target.value})} />
+                <input className="px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="2FA 密钥" value={newAcc.secret} onChange={e => setNewAcc({...newAcc, secret: e.target.value})} />
+              </div>
+              <button onClick={addAccount} className="mt-4 w-full md:w-auto px-8 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-all active:scale-95 shadow-md shadow-amber-100">
+                保存到本地
+              </button>
+            </div>
+
+            {/* 账号列表 */}
+            <div className="grid grid-cols-1 gap-6 mb-12">
+              {accounts.map(acc => (
+                <div key={acc.id} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-all group">
+                  <div className="p-1 w-full bg-amber-500"></div>
+                  <div className="p-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-50 text-amber-600">
+                          <Icon name="user" size={24} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold">{acc.name || '未命名账号'}</h3>
+                          <p className="text-slate-500 text-sm">{acc.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button onClick={() => copyToClipboard(acc.email, `email-${acc.id}`)} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-md transition-all text-sm font-medium">
+                          {copiedField === `email-${acc.id}` ? <Icon name="check" size={16} className="text-green-600"/> : <Icon name="copy" size={16}/>} 复制账号
+                        </button>
+                        <div className="flex items-center gap-1 bg-slate-100 rounded-md overflow-hidden">
+                          <button onClick={() => {
+                            const password = getPassword(acc.id);
+                            if (password) copyToClipboard(password, `pass-${acc.id}`);
+                          }} className="px-3 py-1.5 hover:bg-slate-200 flex items-center gap-2 text-sm font-medium border-r border-slate-200">
+                             {copiedField === `pass-${acc.id}` ? <Icon name="check" size={16} className="text-green-600"/> : <Icon name="key" size={16}/>} 复制密码
+                          </button>
+                          <button onClick={() => {
+                            const password = getPassword(acc.id);
+                            if (password) setShowPassword(prev => ({ ...prev, [acc.id]: !prev[acc.id] }));
+                          }} className="px-3 py-1.5 hover:bg-slate-200">
+                            {showPassword[acc.id] ? <Icon name="eyeOff" size={16}/> : <Icon name="eye" size={16}/>}
+                          </button>
+                        </div>
+                        <button onClick={() => removeAccount(acc.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Icon name="trash" size={20} /></button>
+                      </div>
+                    </div>
+                    {acc.hasSecret && (
+                      <div className="mt-6 p-4 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100 group-hover:border-amber-200 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Icon name="shield" className="text-amber-600" />
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">动态验证码</span>
+                            <div className="text-3xl font-mono font-bold tracking-[0.2em] text-amber-800">{tokens[acc.id] || '--- ---'}</div>
+                          </div>
+                        </div>
+                        <button onClick={() => {
+                          const token = tokens[acc.id];
+                          if (token) copyToClipboard(token, `token-${acc.id}`);
+                        }} className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg flex items-center gap-2 font-bold shadow-lg active:scale-95 transition-all shadow-amber-200">
+                          {copiedField === `token-${acc.id}` ? <Icon name="check" size={20}/> : <Icon name="copy" size={20}/>} 复制
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {accounts.length === 0 && (
+                <div className="text-center py-20 bg-slate-100 rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 font-medium italic">
+                  暂无账号，请在上方添加
+                </div>
+              )}
+            </div>
+
+            {/* 飞书悬浮按钮 - 方案二 */}
+            {config.contact.feishuUrl && (
+              <a
+                href={config.contact.feishuUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="fixed bottom-6 right-6 z-40 group"
+                aria-label="通过飞书联系技术支持"
+              >
+                <div className="relative">
+                  {/* 按钮主体 */}
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer">
+                    <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+
+                  {/* 悬停提示 */}
+                  <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    联系技术支持
+                    {/* 小箭头 */}
+                    <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                  </div>
+                </div>
+              </a>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // 渲染应用
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

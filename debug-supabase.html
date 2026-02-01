@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 连接调试工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #3ecf8e 0%, #2d7a96 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+        .content { padding: 30px; }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-success { background: #d1fae5; color: #065f46; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+        .status-info { background: #dbeafe; color: #1e40af; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3ecf8e;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .btn {
+            background: linear-gradient(135deg, #3ecf8e 0%, #2d7a96 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(62, 207, 142, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #6b7280;
+        }
+        .log-container {
+            background: #1f2937;
+            color: #f3f4f6;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .log-info { background: rgba(59, 130, 246, 0.2); border-left: 3px solid #3b82f6; }
+        .log-success { background: rgba(34, 197, 94, 0.2); border-left: 3px solid #22c55e; }
+        .log-error { background: rgba(239, 68, 68, 0.2); border-left: 3px solid #ef4444; }
+        .log-warning { background: rgba(245, 158, 11, 0.2); border-left: 3px solid #f59e0b; }
+        .log-time { color: #9ca3af; font-size: 11px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .info-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .info-card h4 {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        .info-card p {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        @media (max-width: 640px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .code-block {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        a { color: #3ecf8e; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Supabase 连接调试工具</h1>
+            <p>诊断和修复 Supabase 配置问题</p>
+        </div>
+
+        <div class="content">
+            <!-- 配置状态检查 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📊</span> 当前配置状态
+                </div>
+                <div class="grid" id="configStatus">
+                    <div class="info-card">
+                        <h4>Project URL</h4>
+                        <p id="urlStatus">未配置</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>Anon Key</h4>
+                        <p id="keyStatus">未配置</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>Supabase SDK</h4>
+                        <p id="sdkStatus">未加载</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>客户端实例</h4>
+                        <p id="clientStatus">未创建</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 配置表单 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>⚙️</span> 配置 Supabase
+                </div>
+                <div class="form-group">
+                    <label for="supabaseUrl">Project URL</label>
+                    <input type="text" id="supabaseUrl" placeholder="https://xxxxxxxxxxxxx.supabase.co" />
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        在 Supabase 控制台: Project Settings → API → Project URL
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="supabaseKey">Anon Public Key</label>
+                    <textarea id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        在 Supabase 控制台: Project Settings → API → anon public key
+                    </small>
+                </div>
+                <button class="btn" id="testBtn">
+                    <span id="btnText">🧪 测试连接</span>
+                </button>
+                <button class="btn btn-secondary" id="saveBtn" style="margin-left: 10px;">
+                    💾 保存配置
+                </button>
+            </div>
+
+            <!-- 测试日志 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📝</span> 测试日志
+                    <button class="btn" id="clearBtn" style="margin-left: auto; padding: 6px 12px; font-size: 12px;">
+                        清空日志
+                    </button>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry log-info">
+                        <span class="log-time">[系统]</span> 调试工具已就绪，等待测试...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 帮助信息 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>💡</span> 配置指南
+                </div>
+                <div style="color: #4b5563; line-height: 1.8;">
+                    <p><strong>步骤 1:</strong> 访问 <a href="https://supabase.com" target="_blank">supabase.com</a> 并创建项目</p>
+                    <p><strong>步骤 2:</strong> 在 SQL Editor 中执行 <code>supabase/schema.sql</code> 脚本</p>
+                    <p><strong>步骤 3:</strong> 进入 Project Settings → API，复制以下信息：</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Project URL: <code>https://xxxxxxxxxxxxx.supabase.co</code></li>
+                        <li>anon public: <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></li>
+                    </ul>
+                    <p style="margin-top: 15px;"><strong>步骤 4:</strong> 粘贴到上方表单并测试连接</p>
+                </div>
+            </div>
+
+            <!-- 错误解决方案 -->
+            <div class="section" id="errorSolution" style="display: none;">
+                <div class="section-title">
+                    <span>🔧</span> 错误解决方案
+                </div>
+                <div id="errorContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // 全局变量
+        window.supabaseClient = null;
+        window.testResults = {
+            urlValid: false,
+            keyValid: false,
+            sdkLoaded: false,
+            clientCreated: false,
+            connectionSuccess: false
+        };
+
+        // 日志工具
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString('zh-CN');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 检查配置状态
+        function checkConfigStatus() {
+            const urlInput = document.getElementById('supabaseUrl').value;
+            const urlStatus = document.getElementById('urlStatus');
+            if (urlInput && urlInput.includes('supabase.co')) {
+                urlStatus.innerHTML = '<span class="status-badge status-success">已配置</span>';
+                window.testResults.urlValid = true;
+            } else if (urlInput) {
+                urlStatus.innerHTML = '<span class="status-badge status-warning">格式错误</span>';
+                window.testResults.urlValid = false;
+            } else {
+                urlStatus.innerHTML = '<span class="status-badge status-error">未配置</span>';
+                window.testResults.urlValid = false;
+            }
+
+            const keyInput = document.getElementById('supabaseKey').value;
+            const keyStatus = document.getElementById('keyStatus');
+            if (keyInput && keyInput.length > 50) {
+                keyStatus.innerHTML = '<span class="status-badge status-success">已配置</span>';
+                window.testResults.keyValid = true;
+            } else if (keyInput) {
+                keyStatus.innerHTML = '<span class="status-badge status-warning">可能无效</span>';
+                window.testResults.keyValid = false;
+            } else {
+                keyStatus.innerHTML = '<span class="status-badge status-error">未配置</span>';
+                window.testResults.keyValid = false;
+            }
+
+            const sdkStatus = document.getElementById('sdkStatus');
+            if (typeof window.supabase !== 'undefined') {
+                sdkStatus.innerHTML = '<span class="status-badge status-success">已加载</span>';
+                window.testResults.sdkLoaded = true;
+            } else {
+                sdkStatus.innerHTML = '<span class="status-badge status-error">未加载</span>';
+                window.testResults.sdkLoaded = false;
+            }
+
+            const clientStatus = document.getElementById('clientStatus');
+            if (window.supabaseClient) {
+                clientStatus.innerHTML = '<span class="status-badge status-success">已创建</span>';
+                window.testResults.clientCreated = true;
+            } else {
+                clientStatus.innerHTML = '<span class="status-badge status-warning">未创建</span>';
+                window.testResults.clientCreated = false;
+            }
+        }
+
+        // 加载已保存的配置
+        function loadSavedConfig() {
+            const savedUrl = localStorage.getItem('supabase_debug_url');
+            const savedKey = localStorage.getItem('supabase_debug_key');
+
+            if (savedUrl) document.getElementById('supabaseUrl').value = savedUrl;
+            if (savedKey) document.getElementById('supabaseKey').value = savedKey;
+
+            checkConfigStatus();
+
+            if (savedUrl && savedKey) {
+                log('已加载本地保存的配置', 'info');
+            }
+        }
+
+        // 保存配置
+        function saveConfig() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+
+            if (!url || !key) {
+                log('配置不完整，无法保存', 'error');
+                showError('请填写完整的 Project URL 和 Anon Key');
+                return;
+            }
+
+            localStorage.setItem('supabase_debug_url', url);
+            localStorage.setItem('supabase_debug_key', key);
+
+            log('配置已保存到浏览器本地存储', 'success');
+            log('接下来你可以：', 'info');
+            log('1. 点击"测试连接"验证配置是否正确', 'info');
+            log('2. 将配置复制到 supabase-config.js 文件', 'info');
+
+            const configCode = `/**
+ * Supabase 配置
+ */
+window.SUPABASE_URL = '${url}';
+window.SUPABASE_ANON_KEY = '${key}';`;
+
+            showSolution('配置已保存！请将以下内容复制到 supabase-config.js 文件：', configCode);
+        }
+
+        // 显示解决方案
+        function showSolution(title, content) {
+            const section = document.getElementById('errorSolution');
+            const contentEl = document.getElementById('errorContent');
+            section.style.display = 'block';
+            contentEl.innerHTML = `
+                <p style="margin-bottom: 10px; font-weight: 600;">${title}</p>
+                <div class="code-block">${content}</div>
+            `;
+        }
+
+        function showError(message) {
+            showSolution('错误', message);
+        }
+
+        // 测试连接
+        async function testConnection() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            const btn = document.getElementById('testBtn');
+            const btnText = document.getElementById('btnText');
+
+            if (!url) {
+                log('请填写 Project URL', 'error');
+                showError('Project URL 不能为空');
+                return;
+            }
+            if (!key) {
+                log('请填写 Anon Key', 'error');
+                showError('Anon Key 不能为空');
+                return;
+            }
+            if (!url.includes('supabase.co')) {
+                log('Project URL 格式错误', 'error');
+                showError('Project URL 应该类似: https://xxxxxxxxxxxxx.supabase.co');
+                return;
+            }
+            if (key.length < 100) {
+                log('Anon Key 可能无效（太短）', 'warning');
+                showSolution('警告', 'Anon Key 通常很长（200+ 字符），请检查是否复制完整');
+            }
+
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span> 测试中...';
+
+            log('=== 开始连接测试 ===', 'info');
+            log(`URL: ${url}`, 'info');
+            log(`Key: ${key.substring(0, 20)}...${key.substring(key.length - 20)}`, 'info');
+
+            try {
+                // 创建 Supabase 客户端
+                log('正在创建 Supabase 客户端...', 'info');
+                if (typeof supabase === 'undefined' || typeof supabase.createClient !== 'function') {
+                    log('错误: Supabase SDK 未正确加载', 'error');
+                    btn.disabled = false;
+                    btnText.textContent = '开始测试';
+                    return;
+                }
+                window.supabaseClient = supabase.createClient(url, key);
+                checkConfigStatus();
+
+                // 测试 1: 健康检查
+                log('测试 1/3: 发起健康检查请求...', 'info');
+                const healthStart = Date.now();
+                const healthResponse = await fetch(`${url}/rest/v1/`, {
+                    method: 'HEAD',
+                    headers: {
+                        'apikey': key,
+                        'Authorization': `Bearer ${key}`
+                    }
+                });
+                const healthTime = Date.now() - healthStart;
+
+                if (healthResponse.ok) {
+                    log(`✓ 健康检查通过 (${healthTime}ms)`, 'success');
+                } else {
+                    log(`✗ 健康检查失败 (${healthResponse.status})`, 'error');
+                    throw new Error(`健康检查失败: ${healthResponse.status}`);
+                }
+
+                // 测试 2: 检查表是否存在
+                log('测试 2/3: 检查数据库表...', 'info');
+                const tablesResponse = await fetch(`${url}/rest/v1/accounts?limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': key,
+                        'Authorization': `Bearer ${key}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (tablesResponse.status === 406) {
+                    log('✓ 数据库表存在（accounts 表可访问）', 'success');
+                } else if (tablesResponse.status === 404) {
+                    log('⚠ accounts 表不存在，需要执行 schema.sql', 'warning');
+                    showSolution(
+                        '需要创建数据库表',
+                        '请在 Supabase 控制台的 SQL Editor 中执行 supabase/schema.sql 文件中的 SQL 脚本。'
+                    );
+                } else if (tablesResponse.status === 401) {
+                    log('✗ API Key 无效或未授权', 'error');
+                    throw new Error('API Key 无效，请检查 Anon Public Key 是否正确');
+                } else {
+                    log(`✓ 表检查通过 (${tablesResponse.status})`, 'success');
+                }
+
+                // 测试 3: 尝试查询数据
+                log('测试 3/3: 查询数据...', 'info');
+                const { data, error } = await window.supabaseClient
+                    .from('accounts')
+                    .select('count')
+                    .limit(1);
+
+                if (error) {
+                    throw new Error(`查询失败: ${error.message}`);
+                }
+
+                log('✓ 数据查询成功', 'success');
+                log(`当前 accounts 表记录数: ${data ? data.length : 0}`, 'info');
+
+                log('', 'info');
+                log('========================================', 'success');
+                log('🎉 所有测试通过！连接配置正确！', 'success');
+                log('========================================', 'success');
+
+                window.testResults.connectionSuccess = true;
+
+                showSolution(
+                    '✅ 配置成功！',
+                    `你的 Supabase 配置完全正确！
+
+接下来：
+1. 点击"保存配置"按钮
+2. 将生成的代码复制到 supabase-config.js
+3. 刷新主页面即可使用云端模式
+
+当前配置：
+• URL: ${url}
+• 状态: 已连接
+• 表结构: 已验证`
+                );
+
+            } catch (error) {
+                log(`✗ 测试失败: ${error.message}`, 'error');
+                log('', 'info');
+
+                let solution = '';
+                if (error.message.includes('fetch') || error.message.includes('network')) {
+                    solution = '网络错误：请检查网络连接或 URL 是否正确';
+                } else if (error.message.includes('401') || error.message.includes('JWT')) {
+                    solution = '认证失败：API Key 不正确，请重新从控制台复制 Anon Public Key';
+                } else if (error.message.includes('CORS')) {
+                    solution = 'CORS 错误：需要在 Supabase 控制台配置允许的域名\n\n步骤：\n1. 进入 Authentication → URL Configuration\n2. 添加你的域名或 localhost:3000';
+                } else {
+                    solution = `未知错误：${error.message}\n\n请检查：\n1. URL 和 Key 是否正确复制\n2. Supabase 项目是否正常运行\n3. 是否已执行 schema.sql 创建表`;
+                }
+
+                showError(solution);
+                window.testResults.connectionSuccess = false;
+            } finally {
+                btn.disabled = false;
+                btnText.innerHTML = '🧪 测试连接';
+                checkConfigStatus();
+            }
+        }
+
+        // 清空日志
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('日志已清空', 'info');
+        }
+
+        // 页面加载时执行
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedConfig();
+
+            // 绑定事件监听器
+            document.getElementById('testBtn').addEventListener('click', testConnection);
+            document.getElementById('saveBtn').addEventListener('click', saveConfig);
+            document.getElementById('clearBtn').addEventListener('click', clearLogs);
+            document.getElementById('supabaseUrl').addEventListener('input', checkConfigStatus);
+            document.getElementById('supabaseKey').addEventListener('input', checkConfigStatus);
+
+            log('调试工具初始化完成', 'success');
+            log('请填写 Supabase 配置信息，然后点击"测试连接"', 'info');
+        });
+    </script>
+</body>
+</html>

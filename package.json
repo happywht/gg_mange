@@ -1,0 +1,17 @@
+{
+  "name": "google-login-assistant",
+  "version": "2.0.0",
+  "description": "智能登录助手 - 纯前端静态部署版",
+  "scripts": {
+    "start": "npx serve -l 8899 .",
+    "preview": "npx serve -l 8899 ."
+  },
+  "keywords": [
+    "google",
+    "login",
+    "2fa",
+    "totp"
+  ],
+  "author": "王海涛",
+  "license": "MIT"
+}

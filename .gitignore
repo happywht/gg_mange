@@ -1,0 +1,37 @@
+# 依赖
+node_modules/
+package-lock.json
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.temp
+nul
+
+# 敏感配置（如果需要）
+# supabase-config.js
+
+# 旧的已删除文件
+login-auth.html
+auth-config.js
+password-loader.js
+
+# spec-workflow（如果不需要提交）
+.spec-workflow/

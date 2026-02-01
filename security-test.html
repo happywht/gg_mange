@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全升级验证测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .test-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status.pending { background: #fef3c7; color: #92400e; }
+        .status.running { background: #dbeafe; color: #1e40af; }
+        .status.passed { background: #d1fae5; color: #065f46; }
+        .status.failed { background: #fee2e2; color: #991b1b; }
+        .test-details {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        .run-all-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .run-all-btn:hover {
+            background: #2563eb;
+        }
+        .summary {
+            background: #1f2937;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .summary-label {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 安全升级验证测试</h1>
+
+        <div class="summary">
+            <div>测试进度概览</div>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-value" id="totalTests">0</div>
+                    <div class="summary-label">总测试数</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value" id="passedTests">0</div>
+                    <div class="summary-label">通过</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value" id="failedTests">0</div>
+                    <div class="summary-label">失败</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="run-all-btn" onclick="runAllTests()">▶️ 运行所有测试</button>
+
+        <div id="testResults"></div>
+    </div>
+
+    <!-- Supabase 配置 -->
+    <script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-manager.js"></script>
+
+    <script>
+        const tests = [
+            {
+                id: 'supabase-config',
+                title: 'Supabase 配置检查',
+                run: async () => {
+                    if (typeof window.SUPABASE_URL === 'undefined') {
+                        return { passed: false, message: 'SUPABASE_URL 未定义' };
+                    }
+                    if (typeof window.SUPABASE_ANON_KEY === 'undefined') {
+                        return { passed: false, message: 'SUPABASE_ANON_KEY 未定义' };
+                    }
+                    if (typeof supabase === 'undefined') {
+                        return { passed: false, message: 'Supabase SDK 未加载' };
+                    }
+                    return { passed: true, message: `Supabase 配置正确 (${window.SUPABASE_URL})` };
+                }
+            },
+            {
+                id: 'supabase-connection',
+                title: 'Supabase 连接测试',
+                run: async () => {
+                    try {
+                        const client = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+                        const { data, error } = await client.from('config').select('id').limit(1);
+                        if (error) throw error;
+                        return { passed: true, message: '成功连接到 Supabase 数据库' };
+                    } catch (e) {
+                        return { passed: false, message: `连接失败: ${e.message}` };
+                    }
+                }
+            },
+            {
+                id: 'auth-manager',
+                title: '认证管理器检查',
+                run: async () => {
+                    if (typeof window.SupabaseAuth === 'undefined') {
+                        return { passed: false, message: 'SupabaseAuth 未加载' };
+                    }
+                    const methods = ['signIn', 'signUp', 'logout', 'getSession', 'isAuthenticated'];
+                    const missing = methods.filter(m => typeof window.SupabaseAuth[m] !== 'function');
+                    if (missing.length > 0) {
+                        return { passed: false, message: `缺少方法: ${missing.join(', ')}` };
+                    }
+                    return { passed: true, message: '认证管理器已正确加载' };
+                }
+            },
+            {
+                id: 'rls-policies',
+                title: 'RLS 策略检查',
+                run: async () => {
+                    try {
+                        const client = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+                        // 尝试未认证访问（应该失败或返回空）
+                        const { data, error } = await client.from('accounts').select('*').limit(1);
+                        // 如果有错误或返回空，说明RLS可能在工作
+                        if (error && error.message.includes('policy')) {
+                            return { passed: true, message: 'RLS 策略已启用并阻止未认证访问' };
+                        }
+                        // 如果返回空数据，可能是正常的（没有权限）
+                        if (!data || data.length === 0) {
+                            return { passed: true, message: 'RLS 策略可能已启用（返回空数据）' };
+                        }
+                        // 如果返回了数据，说明RLS可能没配置好
+                        return { passed: false, message: '警告：未认证用户可以访问数据，RLS可能未正确配置' };
+                    } catch (e) {
+                        return { passed: false, message: `检查失败: ${e.message}` };
+                    }
+                }
+            },
+            {
+                id: 'encryption-functions',
+                title: '加密函数检查',
+                run: async () => {
+                    try {
+                        const client = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+                        // 尝试调用加密函数
+                        const { data, error } = await client.rpc('encrypt_secret', {
+                            secret: 'test',
+                            key: 'ChangeMe123!@#'
+                        });
+                        if (error) {
+                            return { passed: false, message: `加密函数不可用: ${error.message}` };
+                        }
+                        return { passed: true, message: '加密函数可用（pgcrypto已启用）' };
+                    } catch (e) {
+                        return { passed: false, message: `检查失败: ${e.message}` };
+                    }
+                }
+            },
+            {
+                id: 'audit-log-table',
+                title: '审计日志表检查',
+                run: async () => {
+                    try {
+                        const client = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+                        const { data, error } = await client.from('audit_logs').select('id').limit(1);
+                        if (error && error.code === '42P01') {
+                            return { passed: false, message: '审计日志表不存在' };
+                        }
+                        return { passed: true, message: '审计日志表已创建' };
+                    } catch (e) {
+                        return { passed: false, message: `检查失败: ${e.message}` };
+                    }
+                }
+            },
+            {
+                id: 'session-check',
+                title: '会话状态检查',
+                run: async () => {
+                    try {
+                        const session = await window.SupabaseAuth.getSession();
+                        if (session) {
+                            return { passed: true, message: `已登录: ${session.user.email}` };
+                        }
+                        return { passed: true, message: '未登录（正常状态）' };
+                    } catch (e) {
+                        return { passed: false, message: `检查失败: ${e.message}` };
+                    }
+                }
+            }
+        ];
+
+        let testResults = {};
+
+        function renderTest(test, result = null) {
+            const statusClass = result ? (result.passed ? 'passed' : 'failed') : 'pending';
+            const statusText = result ? (result.passed ? '✓ 通过' : '✗ 失败') : '⏳ 待测试';
+
+            return `
+                <div class="test-card" id="test-${test.id}">
+                    <div class="test-header">
+                        <div class="test-title">${test.title}</div>
+                        <div class="status ${statusClass}" id="status-${test.id}">${statusText}</div>
+                    </div>
+                    <div class="test-details" id="details-${test.id}">${result ? result.message : '等待运行...'}</div>
+                </div>
+            `;
+        }
+
+        function updateTest(test, result) {
+            const statusEl = document.getElementById(`status-${test.id}`);
+            const detailsEl = document.getElementById(`details-${test.id}`);
+
+            if (result.passed) {
+                statusEl.className = 'status passed';
+                statusEl.textContent = '✓ 通过';
+            } else {
+                statusEl.className = 'status failed';
+                statusEl.textContent = '✗ 失败';
+            }
+
+            detailsEl.textContent = result.message;
+        }
+
+        function updateSummary() {
+            const total = tests.length;
+            const passed = Object.values(testResults).filter(r => r.passed).length;
+            const failed = Object.values(testResults).filter(r => !r.passed).length;
+
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+        }
+
+        async function runTest(test) {
+            updateTest(test, { message: '运行中...', passed: false });
+
+            const statusEl = document.getElementById(`status-${test.id}`);
+            statusEl.className = 'status running';
+            statusEl.textContent = '⏳ 运行中';
+
+            try {
+                const result = await test.run();
+                testResults[test.id] = result;
+                updateTest(test, result);
+            } catch (e) {
+                testResults[test.id] = { passed: false, message: `测试异常: ${e.message}` };
+                updateTest(test, testResults[test.id]);
+            }
+
+            updateSummary();
+        }
+
+        async function runAllTests() {
+            // 重置
+            testResults = {};
+            document.getElementById('testResults').innerHTML = tests.map(t => renderTest(t)).join('');
+            updateSummary();
+
+            // 依次运行测试
+            for (const test of tests) {
+                await runTest(test);
+                // 添加小延迟，让UI更新
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // 显示完成提示
+            const passed = Object.values(testResults).filter(r => r.passed).length;
+            const total = tests.length;
+            alert(`测试完成！\n通过: ${passed}/${total}\n\n请查看详细结果，确保所有测试都通过。`);
+        }
+
+        // 页面加载时渲染测试列表
+        document.getElementById('testResults').innerHTML = tests.map(t => renderTest(t)).join('');
+        document.getElementById('totalTests').textContent = tests.length;
+    </script>
+</body>
+</html>
