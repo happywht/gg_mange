@@ -66,11 +66,25 @@
       announcement: 'google_assistant_announcement',
       config: 'google_assistant_config'
     };
+    // 常用AI服务配置
+    const AI_SERVICES = [
+      { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app', icon: 'sparkles', color: 'bg-blue-500' },
+      { id: 'notebooklm', name: 'NotebookLM', url: 'https://notebooklm.google.com', icon: 'fileText', color: 'bg-emerald-500' },
+      { id: 'cursor', name: 'Cursor', url: 'https://cursor.com', icon: 'code', color: 'bg-violet-500' },
+      { id: 'chatgpt', name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'bot', color: 'bg-green-500' }
+    ];
+
     const DEFAULT_CONFIG = {
       contact: { name: '王海涛', email: 'wanghaitao@sucdri.com', openId: 'ou_f28f2c1dfe74461b2ca055dfe2afe20b' },
       buttons: {
-        guide: { visible: true, text: '登录指导', url: '' },
-        gemini: { visible: true, text: '访问 Gemini', url: 'https://gemini.google.com/app' }
+        guide: { visible: true, text: '操作说明', url: '' },
+        gemini: { visible: true, text: '登录 Google', url: 'https://accounts.google.com' }
+      },
+      visibleServices: [],
+      permissions: {
+        showAddAccount: true,
+        showDeleteButton: true,
+        showModeSwitch: true
       }
     };
     function withFeishuUrl(c) {
@@ -85,7 +99,12 @@
         const raw = localStorage.getItem(STORAGE_KEYS.config);
         if (!raw) return withFeishuUrl(DEFAULT_CONFIG);
         const saved = JSON.parse(raw);
-        return withFeishuUrl({ contact: { ...DEFAULT_CONFIG.contact, ...saved.contact }, buttons: { ...DEFAULT_CONFIG.buttons, ...saved.buttons } });
+        return withFeishuUrl({
+          contact: { ...DEFAULT_CONFIG.contact, ...saved.contact },
+          buttons: { ...DEFAULT_CONFIG.buttons, ...saved.buttons },
+          visibleServices: saved.visibleServices || DEFAULT_CONFIG.visibleServices,
+          permissions: { ...DEFAULT_CONFIG.permissions, ...saved.permissions }
+        });
       } catch {
         return withFeishuUrl(DEFAULT_CONFIG);
       }
@@ -217,6 +236,31 @@
             <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
             <path d="M16 21h5v-5" />
           </>
+        ),
+        fileText: (
+          <>
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" x2="8" y1="13" y2="13" />
+            <line x1="16" x2="8" y1="17" y2="17" />
+            <line x1="10" x2="8" y1="9" y2="9" />
+          </>
+        ),
+        code: (
+          <>
+            <polyline points="16 18 22 12 16 6" />
+            <polyline points="8 6 2 12 8 18" />
+          </>
+        ),
+        bot: (
+          <>
+            <path d="M12 8V4H8" />
+            <rect width="16" height="12" x="4" y="8" rx="2" />
+            <path d="M2 14h2" />
+            <path d="M20 14h2" />
+            <path d="M15 13v2" />
+            <path d="M9 13v2" />
+          </>
         )
       };
 
@@ -251,6 +295,11 @@
       const [showGuide, setShowGuide] = useState(false);
       const [config, setConfig] = useState(() => getConfigFromLocal());
       const [storageMode, setStorageMode] = useState(() => getStorageMode());
+      const [permissions, setPermissions] = useState({
+        showAddAccount: true,
+        showDeleteButton: true,
+        showModeSwitch: true
+      });
 
       // 切换存储模式
       const toggleStorageMode = async (mode) => {
@@ -281,8 +330,13 @@
             if (conf && (conf.contact || conf.buttons)) {
               setConfig(withFeishuUrl({
                 contact: { ...DEFAULT_CONFIG.contact, ...conf.contact },
-                buttons: { ...DEFAULT_CONFIG.buttons, ...conf.buttons }
+                buttons: { ...DEFAULT_CONFIG.buttons, ...conf.buttons },
+                visibleServices: conf.visible_services || DEFAULT_CONFIG.visibleServices,
+                permissions: conf.permissions || DEFAULT_CONFIG.permissions
               }));
+              if (conf.permissions) {
+                setPermissions(conf.permissions);
+              }
             }
             setErrorMsg(null);
           } else {
@@ -427,17 +481,43 @@
 			  <button className="w-full flex items-center gap-3 px-4 py-2.5 bg-blue-600 text-white rounded-md text-sm font-medium transition-all">
 				<Icon name="user" size={18} /> 账号列表
 			  </button>
-			  
-			  {/* 建议：将访问 Gemini 放在这里，非常显眼 */}
-			  <a href="https://gemini.google.com/app" target="_blank" 
-				 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
-				<Icon name="sparkles" size={18} className="text-blue-400 group-hover:text-blue-300" /> 访问 Gemini
-				<Icon name="link" size={12} className="ml-auto opacity-50" />
-			  </a>
 
-			  <button onClick={() => setShowGuide(true)} 
+			  {/* AI服务导航区 */}
+			  <div className="pt-4 pb-2">
+				<div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">AI 服务</div>
+				{AI_SERVICES.map(service => {
+				  if (config.visibleServices && config.visibleServices.length > 0 && !config.visibleServices.includes(service.id)) {
+					return null;
+				  }
+				  return (
+					<a key={service.id} href={service.url} target="_blank" rel="noopener noreferrer"
+					   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
+					  <div className={`w-5 h-5 ${service.color} rounded flex items-center justify-center text-white`}>
+						<Icon name={service.icon} size={12} />
+					  </div>
+					  <span className="flex-1">{service.name}</span>
+					  <Icon name="link" size={12} className="opacity-50" />
+					</a>
+				  );
+				})}
+			  </div>
+
+			  <div className="pt-4 pb-2 border-t border-slate-800">
+				<div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">系统</div>
+			  </div>
+
+			  {/* 建议：将访问 Gemini 改为"登录 Google" */}
+			  {config.buttons?.gemini?.visible !== false && (
+				<a href={config.buttons?.gemini?.url || 'https://accounts.google.com'} target="_blank" rel="noopener noreferrer"
+				   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
+				  <Icon name="sparkles" size={18} className="text-blue-400 group-hover:text-blue-300" /> {config.buttons?.gemini?.text || '登录 Google'}
+				  <Icon name="link" size={12} className="ml-auto opacity-50" />
+				</a>
+			  )}
+
+			  <button onClick={() => setShowGuide(true)}
 					  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all">
-				<Icon name="help" size={18} /> 操作指南
+				<Icon name="help" size={18} /> {config.buttons?.guide?.text || '操作指南'}
 			  </button>
 			</nav>
 
