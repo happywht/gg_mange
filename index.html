@@ -626,6 +626,15 @@
                         </button>
                       </div>
                     )}
+                    {/* 密码明文显示区域 */}
+                    {showPassword[acc.id] && (
+                      <div className="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-500">密码: </span>
+                          <span className="font-mono text-slate-700">{getPassword(acc.id)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
