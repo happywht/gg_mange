@@ -69,20 +69,16 @@
     // 常用AI服务配置
     const AI_SERVICES = [
       { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app', icon: 'sparkles', color: 'bg-blue-500', description: 'Google AI对话助手' },
-      { id: 'notellm', name: 'NoteLLM', url: 'https://notellm.com', icon: 'fileText', color: 'bg-emerald-500', description: 'AI笔记工具' },
+      { id: 'notebooklm', name: 'NotebookLM', url: 'https://notebooklm.google.com', icon: 'fileText', color: 'bg-emerald-500', description: 'Google AI笔记工具' },
       { id: 'cursor', name: 'Cursor', url: 'https://cursor.com', icon: 'code', color: 'bg-violet-500', description: 'AI代码编辑器' },
-      { id: 'claude', name: 'Claude', url: 'https://claude.ai', icon: 'message', color: 'bg-amber-500', description: 'Anthropic AI助手' },
-      { id: 'chatgpt', name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'bot', color: 'bg-green-500', description: 'OpenAI对话助手' },
-      { id: 'perplexity', name: 'Perplexity', url: 'https://perplexity.ai', icon: 'search', color: 'bg-cyan-500', description: 'AI搜索引擎' },
-      { id: 'docs', name: 'Google Docs', url: 'https://docs.google.com', icon: 'document', color: 'bg-blue-600', description: '在线文档' },
-      { id: 'sheets', name: 'Google Sheets', url: 'https://sheets.google.com', icon: 'table', color: 'bg-green-600', description: '在线表格' }
+      { id: 'chatgpt', name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'bot', color: 'bg-green-500', description: 'OpenAI对话助手' }
     ];
 
     const DEFAULT_CONFIG = {
       contact: { name: '王海涛', email: 'wanghaitao@sucdri.com', openId: 'ou_f28f2c1dfe74461b2ca055dfe2afe20b' },
       buttons: {
         guide: { visible: true, text: '操作说明', url: '' },
-        gemini: { visible: true, text: '访问 Gemini', url: 'https://gemini.google.com/app' }
+        gemini: { visible: true, text: '登录 Google', url: 'https://accounts.google.com' }
       },
       // 可自定义显示的服务（空数组表示显示全部）
       visibleServices: []
@@ -627,7 +623,7 @@
                 </h2>
                 <span className="text-xs text-slate-400">点击图标快速访问</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {AI_SERVICES.map(service => {
                   // 如果配置了visibleServices且不为空，则只显示配置的服务
                   if (config.visibleServices && config.visibleServices.length > 0 && !config.visibleServices.includes(service.id)) {
@@ -639,12 +635,12 @@
                       href={service.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                      className="group flex flex-col items-center gap-3 p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
                     >
-                      <div className={`w-10 h-10 ${service.color} rounded-lg flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
-                        <Icon name={service.icon} size={20} />
+                      <div className={`w-12 h-12 ${service.color} rounded-lg flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
+                        <Icon name={service.icon} size={24} />
                       </div>
-                      <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600 text-center leading-tight">
+                      <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 text-center leading-tight">
                         {service.name}
                       </span>
                     </a>
@@ -742,7 +738,7 @@
                         <span>快速登录到</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {AI_SERVICES.slice(0, 6).map(service => {
+                        {AI_SERVICES.map(service => {
                           // 如果配置了visibleServices且不为空，则只显示配置的服务
                           if (config.visibleServices && config.visibleServices.length > 0 && !config.visibleServices.includes(service.id)) {
                             return null;
