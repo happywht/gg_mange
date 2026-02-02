@@ -346,7 +346,7 @@
               setConfig(withFeishuUrl({
                 contact: { ...DEFAULT_CONFIG.contact, ...conf.contact },
                 buttons: { ...DEFAULT_CONFIG.buttons, ...conf.buttons },
-                visibleServices: conf.visibleServices || DEFAULT_CONFIG.visibleServices
+                visibleServices: conf.visible_services || DEFAULT_CONFIG.visibleServices
               }));
               // 加载权限配置
               if (conf.permissions) {
