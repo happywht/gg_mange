@@ -482,43 +482,51 @@
 				<Icon name="user" size={18} /> 账号列表
 			  </button>
 
-			  {/* AI服务导航区 */}
-			  <div className="pt-4 pb-2">
-				<div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">AI 服务</div>
-				{AI_SERVICES.map(service => {
-				  if (config.visibleServices && config.visibleServices.length > 0 && !config.visibleServices.includes(service.id)) {
-					return null;
-				  }
-				  return (
-					<a key={service.id} href={service.url} target="_blank" rel="noopener noreferrer"
-					   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
-					  <div className={`w-5 h-5 ${service.color} rounded flex items-center justify-center text-white`}>
-						<Icon name={service.icon} size={12} />
-					  </div>
-					  <span className="flex-1">{service.name}</span>
-					  <Icon name="link" size={12} className="opacity-50" />
-					</a>
-				  );
-				})}
-			  </div>
+			  {/* AI服务导航区 - 根据配置动态显示 */}
+			  {config.visibleServices === undefined || config.visibleServices.length < AI_SERVICES.length ? (
+			    <div className="pt-4 pb-2">
+			      <div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">AI 服务</div>
+			      {AI_SERVICES.map(service => {
+			        if (config.visibleServices && config.visibleServices.length > 0 && !config.visibleServices.includes(service.id)) {
+			          return null;
+			        }
+			        return (
+			          <a key={service.id} href={service.url} target="_blank" rel="noopener noreferrer"
+			             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
+			            <div className={`w-5 h-5 ${service.color} rounded flex items-center justify-center text-white`}>
+			              <Icon name={service.icon} size={12} />
+			            </div>
+			            <span className="flex-1">{service.name}</span>
+			            <Icon name="link" size={12} className="opacity-50" />
+			          </a>
+			        );
+			      })}
+			    </div>
+			  ) : null}
 
-			  <div className="pt-4 pb-2 border-t border-slate-800">
-				<div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">系统</div>
-			  </div>
+			  {/* 系统菜单 - 根据配置动态显示 */}
+			  {(config.buttons?.gemini?.visible !== false || config.buttons?.guide?.visible !== false) && (
+			    <div className="pt-4 pb-2 border-t border-slate-800">
+			      <div className="px-4 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">系统</div>
 
-			  {/* 建议：将访问 Gemini 改为"登录 Google" */}
-			  {config.buttons?.gemini?.visible !== false && (
-				<a href={config.buttons?.gemini?.url || 'https://accounts.google.com'} target="_blank" rel="noopener noreferrer"
-				   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
-				  <Icon name="sparkles" size={18} className="text-blue-400 group-hover:text-blue-300" /> {config.buttons?.gemini?.text || '登录 Google'}
-				  <Icon name="link" size={12} className="ml-auto opacity-50" />
-				</a>
+			      {/* 登录 Google */}
+			      {config.buttons?.gemini?.visible !== false && (
+			        <a href={config.buttons?.gemini?.url || 'https://accounts.google.com'} target="_blank" rel="noopener noreferrer"
+			           className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all group">
+			          <Icon name="sparkles" size={18} className="text-blue-400 group-hover:text-blue-300" /> {config.buttons?.gemini?.text || '登录 Google'}
+			          <Icon name="link" size={12} className="ml-auto opacity-50" />
+			        </a>
+			      )}
+
+			      {/* 操作指南 */}
+			      {config.buttons?.guide?.visible !== false && (
+			        <button onClick={() => setShowGuide(true)}
+			            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all">
+			          <Icon name="help" size={18} /> {config.buttons?.guide?.text || '操作指南'}
+			        </button>
+			      )}
+			    </div>
 			  )}
-
-			  <button onClick={() => setShowGuide(true)}
-					  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800 hover:text-white rounded-md text-sm transition-all">
-				<Icon name="help" size={18} /> {config.buttons?.guide?.text || '操作指南'}
-			  </button>
 			</nav>
 
 			{/* 左下角：展示使用者信息，而非技术支持 */}
