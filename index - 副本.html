@@ -8,6 +8,9 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+   <!-- Feishu Passport -->
+  <script src="https://lf1-cdn-tos.bytegoofy.com/obj/static/lark/passport/qrcode/LarkSSO-1.0.2.js"></script>
+
   <!-- React & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -283,6 +286,7 @@
     };
 
     const App = () => {
+      const [userInfo, setUserInfo] = useState({ name: '授权用户', avatar: '', isFeishu: false });
       const [accounts, setAccounts] = useState([]);
       const [announcement, setAnnouncement] = useState(null);
       const [newAcc, setNewAcc] = useState({ name: '', email: '', password: '', secret: '' });
@@ -360,6 +364,82 @@
           if (showLoading) setLoading(false);
         }
       };
+
+      // 飞书 SSO：识别是否为飞书内置浏览器
+      useEffect(() => {
+          const checkFeishuSSO = async () => {
+              // 检查是否在飞书内置浏览器中
+              const isFeishuBrowser = /Lark|Feishu/i.test(navigator.userAgent);
+              if (!isFeishuBrowser) return;
+
+              // 等待飞书 H5 SDK 加载完成
+              if (!window.h5sdk) {
+                  console.warn('飞书 H5 SDK 未加载');
+                  return;
+              }
+
+              window.h5sdk.ready(() => {
+                  if (!tt || !tt.requestAuthCode) {
+                      console.error('飞书 SDK 不可用');
+                      return;
+                  }
+
+                  tt.requestAuthCode({
+                      appId: 'cli_a90a87e94ab85bd8', // 与 server.js 中的 LARK_APP_ID 一致
+                      success: async (res) => {
+                          try {
+                              // 调用后端接口换取 open_id
+                              const authRes = await fetch('/api/auth/feishu-sso', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ code: res.code })
+                              });
+
+                              if (!authRes.ok) {
+                                  throw new Error(`HTTP ${authRes.status}`);
+                              }
+
+                              const result = await authRes.json();
+
+                              if (result.success && result.user) {
+                                  // 1. 更新 UI 用户信息
+                                  setUserInfo({
+                                      name: result.user.name || '飞书用户',
+                                      avatar: result.user.avatar_url || '',
+                                      isFeishu: true
+                                  });
+
+                                  // 2. 从 Supabase 加载该 open_id 绑定的账号
+                                  const { data, error } = await supabase
+                                      .from('secure_accounts')
+                                      .select('*')
+                                      .eq('feishu_openid', result.user.open_id);
+
+                                  if (error) {
+                                      console.error('查询账号失败:', error);
+                                  } else if (data && data.length > 0) {
+                                      setAccounts(data);
+                                      console.log(`已加载 ${data.length} 个绑定的账号`);
+                                  } else {
+                                      console.log('该飞书用户暂无绑定账号');
+                                  }
+                              } else {
+                                  console.error('飞书认证失败:', result.error);
+                              }
+                          } catch (error) {
+                              console.error('飞书 SSO 处理异常:', error);
+                          }
+                      },
+                      fail: (error) => {
+                          console.error('飞书授权码获取失败:', error);
+                      }
+                  });
+              });
+          };
+
+          // 延迟执行，确保 SDK 加载完成
+          setTimeout(checkFeishuSSO, 500);
+      }, []);
 
       // 1. 首次加载
       useEffect(() => {
@@ -536,8 +616,8 @@
 				  USER
 				</div>
 				<div className="min-w-0">
-				  <p className="text-xs font-bold text-slate-200 truncate">授权使用者</p>
-				  <p className="text-[10px] text-slate-500 truncate">SUCDRI 内部访问</p>
+				  <p className="text-xs font-bold text-slate-200 truncate">{userInfo.name}</p>
+				  <p className="text-[10px] text-slate-500 truncate">{userInfo.isFeishu ? '飞书认证用户' : 'SUCDRI 内部访问'}</p>
 				</div>
 			  </div>
 			</div>

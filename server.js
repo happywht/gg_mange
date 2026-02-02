@@ -95,6 +95,37 @@ function initDatabase() {
 
 // ==================== API 路由 ====================
 
+const axios = require('axios'); // 请确保先运行 npm install axios
+
+// 配置您的飞书自建应用信息
+const LARK_APP_ID = process.env.LARK_APP_ID || 'cli_a90a87e94ab85bd8';
+const LARK_APP_SECRET = process.env.LARK_APP_SECRET || 'dtIbnrg89RNucm5bneoKTyDlizx6kAHW';
+
+// 新增：飞书免登身份识别接口
+app.post('/api/auth/feishu-sso', async (req, res) => {
+    const { code } = req.body;
+    try {
+        // 1. 获取 tenant_access_token
+        const tokenRes = await axios.post('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+            app_id: LARK_APP_ID,
+            app_secret: LARK_APP_SECRET
+        });
+        const tenantToken = tokenRes.data.tenant_access_token;
+
+        // 2. 用 code 换取用户信息 (open_id)
+        const userRes = await axios.post('https://open.feishu.cn/open-apis/authen/v1/access_token', {
+            grant_type: 'authorization_code',
+            code: code
+        }, {
+            headers: { 'Authorization': `Bearer ${tenantToken}` }
+        });
+
+        res.json({ success: true, user: userRes.data.data }); 
+    } catch (error) {
+        res.status(500).json({ success: false, error: '飞书认证失败' });
+    }
+});
+
 // 获取所有账号（普通用户 - 敏感信息已过滤）
 app.get('/api/accounts', (req, res) => {
     db.all('SELECT * FROM accounts ORDER BY created_at DESC', [], (err, rows) => {
