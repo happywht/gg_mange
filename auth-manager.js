@@ -1,6 +1,6 @@
 /**
- * Supabase Auth 认证管理器
- * 替代原有的简单密码验证，使用真正的用户认证
+ * 本地认证管理器
+ * 使用固定密码进行本地认证，不依赖外部服务
  */
 
 (function() {
@@ -8,243 +8,204 @@
 
   // 配置
   const CONFIG = {
-    // 管理员邮箱列表（需要在 Supabase 控制台创建对应的用户）
-    adminEmails: ['wanghaitao@sucdri.com'],
+    // 固定密码
+    password: 'Sucrdri2026',
+    // 系统账号信息
+    systemUser: {
+      id: 'local-user-001',
+      email: 'system@sucdri.com',
+      name: 'SUCDRI001'
+    },
     // 会话超时时间（毫秒）- 2小时
-    sessionTimeout: 2 * 60 * 60 * 1000
+    sessionTimeout: 2 * 60 * 60 * 1000,
+    // 存储键名
+    storageKeys: {
+      token: 'auth_token',
+      timestamp: 'auth_timestamp',
+      user: 'auth_user'
+    }
   };
-
-  // Supabase 客户端（延迟初始化）
-  let supabaseClient = null;
-
-  /**
-   * 初始化 Supabase 客户端
-   */
-  function initSupabase() {
-    if (supabaseClient) return supabaseClient;
-
-    if (typeof supabase === 'undefined' ||
-        typeof window.SUPABASE_URL === 'undefined' ||
-        typeof window.SUPABASE_ANON_KEY === 'undefined') {
-      console.error('Supabase 未正确配置');
-      return null;
-    }
-
-    supabaseClient = supabase.createClient(
-      window.SUPABASE_URL,
-      window.SUPABASE_ANON_KEY
-    );
-
-    return supabaseClient;
-  }
-
-  /**
-   * 获取当前会话信息
-   */
-  async function getSession() {
-    const client = initSupabase();
-    if (!client) return null;
-
-    try {
-      const { data: { session }, error } = await client.auth.getSession();
-      if (error) {
-        console.error('获取会话失败:', error);
-        return null;
-      }
-      return session;
-    } catch (e) {
-      console.error('获取会话异常:', e);
-      return null;
-    }
-  }
 
   /**
    * 检查是否已认证
    */
-  async function isAuthenticated() {
-    const session = await getSession();
-    if (!session) return false;
+  function isAuthenticated() {
+    const authToken = sessionStorage.getItem(CONFIG.storageKeys.token);
+    const authTimestamp = sessionStorage.getItem(CONFIG.storageKeys.timestamp);
 
-    // 检查会话是否过期
-    const now = Date.now();
-    const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
-
-    if (now > expiresAt) {
-      // 会话已过期，清除
-      await logout();
+    if (!authToken || !authTimestamp) {
       return false;
     }
+
+    const now = Date.now();
+    const elapsed = now - parseInt(authTimestamp);
+
+    // 检查是否过期
+    if (elapsed > CONFIG.sessionTimeout) {
+      // 会话已过期，清除
+      _clearSession();
+      return false;
+    }
+
+    // 更新时间戳，延长会话
+    sessionStorage.setItem(CONFIG.storageKeys.timestamp, now.toString());
 
     return true;
   }
 
   /**
-   * 检查当前用户是否是管理员
+   * 登录验证
+   * @param {string} password - 用户输入的密码
+   * @returns {Promise<{success: boolean, error?: string, user?: object}>}
    */
-  async function isAdmin() {
-    const session = await getSession();
-    if (!session || !session.user) return false;
+  async function signIn(password) {
+    // 模拟网络延迟，增加真实感
+    await _delay(300);
 
-    const email = session.user.email;
-    return CONFIG.adminEmails.includes(email);
-  }
-
-  /**
-   * 登录（邮箱+密码）
-   */
-  async function signIn(email, password) {
-    const client = initSupabase();
-    if (!client) {
-      return { success: false, error: 'Supabase 未配置' };
+    if (!password) {
+      return { success: false, error: '请输入登录密码' };
     }
 
-    try {
-      const { data, error } = await client.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+    // 验证密码
+    if (password === CONFIG.password) {
+      // 登录成功，创建会话
+      const now = Date.now();
+      const token = _generateToken();
 
-      if (error) {
-        console.error('登录失败:', error);
-        return { success: false, error: error.message };
-      }
-
-      const user = data.user;
-      const isAdminUser = CONFIG.adminEmails.includes(email);
+      sessionStorage.setItem(CONFIG.storageKeys.token, token);
+      sessionStorage.setItem(CONFIG.storageKeys.timestamp, now.toString());
+      sessionStorage.setItem(CONFIG.storageKeys.user, JSON.stringify(CONFIG.systemUser));
 
       return {
         success: true,
         user: {
-          id: user.id,
-          email: user.email,
-          isAdmin: isAdminUser
+          id: CONFIG.systemUser.id,
+          email: CONFIG.systemUser.email,
+          name: CONFIG.systemUser.name,
+          isAdmin: true
         },
-        session: data.session
+        session: {
+          token: token,
+          expiresAt: now + CONFIG.sessionTimeout
+        }
       };
-    } catch (e) {
-      console.error('登录异常:', e);
-      return { success: false, error: e.message };
     }
+
+    // 密码错误
+    return { success: false, error: '密码错误，请重新输入' };
   }
 
   /**
    * 登出
    */
-  async function logout() {
-    const client = initSupabase();
-    if (!client) return;
-
-    try {
-      await client.auth.signOut();
-    } catch (e) {
-      console.error('登出异常:', e);
-    }
-  }
-
-  /**
-   * 注册新用户
-   */
-  async function signUp(email, password, metadata = {}) {
-    const client = initSupabase();
-    if (!client) {
-      return { success: false, error: 'Supabase 未配置' };
-    }
-
-    try {
-      const { data, error } = await client.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: metadata
-        }
-      });
-
-      if (error) {
-        console.error('注册失败:', error);
-        return { success: false, error: error.message };
-      }
-
-      return {
-        success: true,
-        user: data.user,
-        session: data.session
-      };
-    } catch (e) {
-      console.error('注册异常:', e);
-      return { success: false, error: e.message };
-    }
+  function logout() {
+    _clearSession();
   }
 
   /**
    * 获取当前用户信息
    */
-  async function getCurrentUser() {
-    const session = await getSession();
-    if (!session || !session.user) return null;
+  function getCurrentUser() {
+    if (!isAuthenticated()) {
+      return null;
+    }
 
-    const email = session.user.email;
+    const userStr = sessionStorage.getItem(CONFIG.storageKeys.user);
+    if (!userStr) {
+      return null;
+    }
+
+    try {
+      const user = JSON.parse(userStr);
+      return {
+        ...user,
+        isAdmin: true
+      };
+    } catch (e) {
+      console.error('解析用户信息失败:', e);
+      return null;
+    }
+  }
+
+  /**
+   * 获取会话信息
+   */
+  function getSession() {
+    if (!isAuthenticated()) {
+      return null;
+    }
+
+    const authTimestamp = sessionStorage.getItem(CONFIG.storageKeys.timestamp);
+    const user = getCurrentUser();
+
     return {
-      id: session.user.id,
-      email: email,
-      isAdmin: CONFIG.adminEmails.includes(email),
-      metadata: session.user.user_metadata
+      user: user,
+      expiresAt: parseInt(authTimestamp) + CONFIG.sessionTimeout,
+      createdAt: parseInt(authTimestamp)
     };
+  }
+
+  /**
+   * 检查是否是管理员（本地认证默认都是管理员）
+   */
+  function isAdmin() {
+    return isAuthenticated();
   }
 
   /**
    * 强制要求认证（用于受保护的页面）
    * 如果未认证，跳转到登录页
    */
-  async function requireAuth(redirectTo = 'login.html') {
-    const authenticated = await isAuthenticated();
-
-    if (!authenticated) {
-      const currentUrl = window.location.href.split('?')[0];
+  function requireAuth(redirectTo = 'login.html') {
+    if (!isAuthenticated()) {
       const currentPage = window.location.pathname.split('/').pop() || 'index.html';
       const redirectUrl = `${redirectTo}?redirect=${encodeURIComponent(currentPage)}`;
       window.location.href = redirectUrl;
       return false;
     }
-
     return true;
   }
 
   /**
-   * 强制要求管理员权限（用于管理页面）
+   * 强制要求管理员权限（本地认证默认通过）
    */
-  async function requireAdmin(redirectTo = 'login.html') {
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      window.location.href = redirectTo;
-      return false;
-    }
-
-    const adminUser = await isAdmin();
-    if (!adminUser) {
-      alert('您没有管理员权限');
-      window.location.href = 'index.html';
-      return false;
-    }
-
-    return true;
+  function requireAdmin(redirectTo = 'login.html') {
+    return requireAuth(redirectTo);
   }
 
   /**
-   * 监听认证状态变化
+   * 生成随机令牌
+   * @private
    */
-  function onAuthStateChange(callback) {
-    const client = initSupabase();
-    if (!client) return;
-
-    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-      callback(event, session);
-    });
-
-    return subscription;
+  function _generateToken() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 32; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
   }
 
-  // 导出 API
-  window.SupabaseAuth = {
+  /**
+   * 清除会话
+   * @private
+   */
+  function _clearSession() {
+    sessionStorage.removeItem(CONFIG.storageKeys.token);
+    sessionStorage.removeItem(CONFIG.storageKeys.timestamp);
+    sessionStorage.removeItem(CONFIG.storageKeys.user);
+  }
+
+  /**
+   * 延迟函数
+   * @private
+   */
+  function _delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // 导出 API - 本地认证
+  window.LocalAuth = {
     // 会话管理
     getSession,
     getCurrentUser,
@@ -253,23 +214,39 @@
 
     // 认证操作
     signIn,
-    signUp,
     logout,
 
     // 权限控制
     requireAuth,
     requireAdmin,
 
-    // 工具函数
-    onAuthStateChange,
-
-    // 配置
-    CONFIG
+    // 配置（只读）
+    CONFIG: {
+      sessionTimeout: CONFIG.sessionTimeout
+    }
   };
 
-  // 兼容旧的 API（平滑迁移）
-  window.logout = logout;
-  window.AuthManager = window.SupabaseAuth;
+  // 兼容旧的 Supabase Auth API（平滑迁移）
+  window.SupabaseAuth = {
+    getSession,
+    getCurrentUser,
+    isAuthenticated,
+    isAdmin,
+    signIn: async (email, password) => {
+      // 忽略 email 参数，只验证密码
+      return signIn(password);
+    },
+    signUp: async () => ({ success: false, error: '本地认证不支持注册' }),
+    logout,
+    requireAuth,
+    requireAdmin,
+    onAuthStateChange: () => null,
+    CONFIG: {}
+  };
 
-  console.log('Supabase Auth 认证管理器已加载');
+  // 兼容旧的 API
+  window.logout = logout;
+  window.AuthManager = window.LocalAuth;
+
+  console.log('本地认证管理器已加载');
 })();

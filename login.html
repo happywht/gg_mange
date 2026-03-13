@@ -254,21 +254,14 @@
         </form>
 
         <div class="footer">
-            安全登录 · 使用 Supabase Auth 认证
+            安全登录 · 本地密码认证
         </div>
     </div>
-
-    <!-- Supabase 配置 -->
-    <script src="supabase-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- 认证管理器 -->
     <script src="auth-manager.js"></script>
 
     <script>
-        // 固定的系统邮箱
-        const SYSTEM_EMAIL = '776815438@qq.com';
-
         const form = document.getElementById('loginForm');
         const passwordInput = document.getElementById('password');
         const togglePassword = document.getElementById('togglePassword');
@@ -314,8 +307,8 @@
             loginBtn.innerHTML = '<span class="loading-spinner"></span> 登录中...';
 
             try {
-                // 使用固定的系统邮箱进行登录
-                const result = await window.SupabaseAuth.signIn(SYSTEM_EMAIL, password);
+                // 使用本地认证管理器进行登录
+                const result = await window.LocalAuth.signIn(password);
 
                 if (result.success) {
                     // 登录成功
@@ -348,7 +341,7 @@
         // 检查是否已登录
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                const authenticated = await window.SupabaseAuth.isAuthenticated();
+                const authenticated = window.LocalAuth.isAuthenticated();
 
                 if (authenticated) {
                     // 已登录，直接跳转
